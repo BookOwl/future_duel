@@ -1,6 +1,6 @@
 extern crate subprocess;
+#[macro_use]
 extern crate clap;
-use clap::*;
 use subprocess::{Exec, Redirection};
 use std::thread;
 use std::process::{Command, Stdio};
