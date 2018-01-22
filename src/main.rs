@@ -3,11 +3,10 @@ extern crate subprocess;
 extern crate clap;
 use subprocess::{Exec, Redirection};
 use std::thread;
-use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex, Barrier};
+use std::sync::{Arc, Barrier};
 use std::time;
 use std::sync::mpsc::{channel, Sender, Receiver};
-use std::io::{Read, Write, BufRead, BufReader};
+use std::io::{Read, Write};
 
 /// An Action represents the actions a player can make.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +58,7 @@ enum DuelResult {
     Tie,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 struct BotState {
     ammo: i32,
     metal_shield: bool,
@@ -67,13 +67,13 @@ struct BotState {
 
 fn read_action(stdout: &mut std::fs::File) -> Action {
     let mut buf = [0; 1];
-    stdout.read_exact(&mut buf);
+    stdout.read_exact(&mut buf).unwrap();
     Action::from_byte(buf[0]).unwrap()
 }
 
 fn read_ready(stdout: &mut std::fs::File) {
     let mut buf = [0; 1];
-    stdout.read_exact(&mut buf);
+    stdout.read_exact(&mut buf).unwrap();
     assert_eq!(buf[0], 0x72, "Invalid starting byte!");
 }
 
@@ -81,7 +81,7 @@ fn stream_stdout(mut out: std::fs::File) -> Receiver<Action> {
     let (tx, rx) = channel();
     thread::spawn(move || {
         loop {
-            tx.send(read_action(&mut out));
+            tx.send(read_action(&mut out)).unwrap();
         }
     });
     rx
@@ -114,7 +114,30 @@ fn run_bot(name: String, barrier: Arc<Barrier>, action_sender: Sender<Action>, o
         let actions = stream_stdout(stdout);
         loop {
             if let Ok(act) = actions.try_recv() {
+                bot_state.metal_shield = false;
+                bot_state.thermal_shield = false;
                 action_sender.send(act).unwrap();
+                match act {
+                    Action::Dead => unreachable!(),
+                    Action::DefendBullet => bot_state.metal_shield = true,
+                    Action::DefendPlasma => bot_state.thermal_shield = true,
+                    Action::FireBullet => {
+                        bot_state.ammo -= 1;
+                        if bot_state.ammo < 0 {
+                            action_sender.send(Action::Dead).unwrap();
+                        }
+                    },
+                    Action::FirePlasma => {
+                        bot_state.ammo -= 2;
+                        if bot_state.ammo < 0 {
+                            action_sender.send(Action::Dead).unwrap();
+                        }
+                    },
+                    Action::LoadAmmo => {
+                        bot_state.ammo += 1;
+                        thread::sleep(time::Duration::from_millis(100));
+                    }
+                }
             }
             if let Ok(act) = opponent_act_recv.try_recv() {
                 match act {
