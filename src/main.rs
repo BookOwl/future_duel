@@ -89,7 +89,7 @@ fn stream_stdout(mut out: std::fs::File) -> Receiver<Action> {
 
 fn run_bot(name: String, barrier: Arc<Barrier>, action_sender: Sender<Action>, opponent_act_recv: Receiver<Action>) {
     thread::spawn(move || {
-        let bot = Exec::cmd(name)
+        let bot = Exec::shell(&name)
                     .stdin(Redirection::Pipe)
                     .stdout(Redirection::Pipe)
                     .popen()
@@ -171,12 +171,14 @@ fn run_duel(bot1: String, bot2: String) -> DuelResult {
     let start_time = time::Instant::now();
     loop {
         if let Ok(bot1_act) = bot1_act_recv.try_recv() {
+            println!("Bot1 made the move {:?}", bot1_act);
             if bot1_act == Action::Dead {
                 return DuelResult::Player2Wins
             }
             bot2_opponent_act_tx.send(bot1_act).unwrap();
         }
         if let Ok(bot2_act) = bot2_act_recv.try_recv() {
+            println!("Bot2 made the move {:?}", bot2_act);
             if bot2_act == Action::Dead {
                 return DuelResult::Player1Wins
             }
