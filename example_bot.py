@@ -14,7 +14,7 @@ def main():
     fp.flush()
     fp.write(LOAD)
     fp.flush()
-    acions = [LOAD, FIRE_B, ]
+    actions = [LOAD, FIRE_B, ]
     ammo = 0
     while True:
         action = actions.popleft()
