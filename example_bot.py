@@ -17,7 +17,7 @@ def main():
     actions = [LOAD, FIRE_B, ]
     ammo = 0
     while True:
-        action = actions.popleft()
+        action = actions.pop(0)
         fp.write(action)
         fp.flush()
         if action == LOAD:
